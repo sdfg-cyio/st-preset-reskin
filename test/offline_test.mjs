@@ -2,7 +2,7 @@
 // 用法: node test/offline_test.mjs <预设目录>
 import fs from 'node:fs';
 import path from 'node:path';
-import { buildUnits, assemblePreset, diffStructure, collectProtected, fillerScore, maskText, buildLiteralRe, validateRewrite, FILLER_NAME_HINT, parseNameMap, nameMapConflicts } from '../lib/core.js';
+import { buildUnits, assemblePreset, diffStructure, collectProtected, fillerScore, maskText, buildLiteralRe, validateRewrite, FILLER_NAME_HINT, parseNameMap, nameMapConflicts, sanitizeNameMap } from '../lib/core.js';
 import { runReskin } from '../lib/pipeline.js';
 
 const dir = process.argv[2] || 'D:/worker/RI';
@@ -127,6 +127,14 @@ check(validateRewrite('一二三四五六七八九十⟦0⟧', '一二三四五�
     const hard = { size: 1, has: (id) => /\{\{|\}\}/.test(toks[id]) };
     check(!validateRewrite('⟦0⟧并同时对照⟦1⟧', '⟦0⟧，同时拿⟦1⟧作对照', { hard }).ok, '跨宏边界挪动文字应报错');
     check(validateRewrite('⟦0⟧并同时对照一下⟦1⟧', '⟦0⟧也一并比对一下⟦1⟧', { hard }).ok, '宏内正常改写应通过');
+}
+// 代词不进名称表；名字被换成代词要报错
+{
+    const { map, dropped } = sanitizeNameMap(parseNameMap('泉此方=伊蕾娜\n小此=伊蕾娜|我\n咱=我\nMaster=用户'));
+    check(dropped.length === 2 && map.find(x => x.from === '小此').to.join() === '伊蕾娜' && !map.find(x => x.from === '咱'), `代词过滤不对：${JSON.stringify(dropped)}`);
+    const names = ['伊蕾娜', '用户'];
+    check(!validateRewrite('用户把权限交给伊蕾娜，伊蕾娜要回报用户的信任。', '我把权限交给你，你也要回报我的信任呢。', { names }).ok, '名字换成代词应报错');
+    check(validateRewrite('用户把权限交给伊蕾娜，伊蕾娜要回报用户的信任。', '用户把这份权限托付给伊蕾娜，伊蕾娜也得对得起用户的信任呢。', { names }).ok, '保留名字的改写应通过');
 }
 console.log(failed ? `\n失败 ${failed} 项` : '\n全部通过');
 process.exit(failed ? 1 : 0);

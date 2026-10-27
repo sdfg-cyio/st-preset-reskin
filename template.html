@@ -45,6 +45,8 @@
         <div class="prs-title">3. 方向</div>
         <textarea id="prs-direction" class="text_pole" rows="2" placeholder="你的重要指示：指定新人物、口吻或方向。例如：换成《学园偶像大师》秦谷美铃的口吻，句尾带“嘛”，称呼用户为制作人/producer。留空则让 AI 自己发挥。"></textarea>
         <div class="prs-row">
+            <label title="改写后指代用户时统一用这个词，避免“我/你”让模型分不清谁是谁。可写多个用 | 分隔">用户称呼
+                <input id="prs-usercall" class="text_pole" placeholder="如：用户 或 Master|user，留空为“用户”"></label>
             <div id="prs-analyze" class="menu_button"><i class="fa-solid fa-magnifying-glass"></i> AI 分析预设并生成风格卡</div>
         </div>
         <div class="prs-grid">

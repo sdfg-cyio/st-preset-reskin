@@ -1,7 +1,7 @@
 // 预设换皮（Preset Reskin）：让 AI 把聊天补全预设的文字换一种说法，功能、宏、标签、正则全部保留
 import {
     buildUnits, assemblePreset, diffStructure, collectProtected, buildLiteralRe, maskText,
-    fillerScore, FILLER_NAME_HINT, parseNameMap, nameMapConflicts,
+    fillerScore, FILLER_NAME_HINT, parseNameMap, nameMapConflicts, sanitizeNameMap,
 } from './lib/core.js';
 import { runReskin, buildAnalyzePrompt, parseAnalyzeResult, sampleText } from './lib/pipeline.js';
 import { makeCaller, listModels } from './lib/llm.js';
@@ -13,7 +13,7 @@ const ctx = () => SillyTavern.getContext();
 const DEFAULTS = {
     source: 'main', url: '', key: '', saveKey: false, model: '', temperature: 0.9,
     thinking: 'off', concurrency: 6, retries: 2, chunkSize: 4000, batchSize: 4000,
-    direction: '', mode: 'persona', intensity: 'normal', nameMap: '', styleCard: '', extraKeep: '', extraKill: '',
+    direction: '', userCall: '', mode: 'persona', intensity: 'normal', nameMap: '', styleCard: '', extraKeep: '', extraKill: '',
 };
 
 // 本次会话状态
@@ -133,10 +133,14 @@ function renderUnits() {
 }
 
 function checkConflicts() {
-    if (!state.protected) return;
-    const lits = [...state.protected.literals, ...lines($p('#prs-keep').val())];
-    const c = nameMapConflicts(parseNameMap($p('#prs-namemap').val()), lits);
-    $p('#prs-conflict').text(c.length ? `注意：${c.join('、')} 出现在预设正则要匹配的字面量里，这些位置不会被替换（替换会让正则失效）。` : '');
+    const lits = [...(state.protected?.literals || []), ...lines($p('#prs-keep').val())];
+    const parsed = parseNameMap($p('#prs-namemap').val());
+    const c = nameMapConflicts(parsed, lits);
+    const { dropped } = sanitizeNameMap(parsed);
+    const msg = [];
+    if (dropped.length) msg.push(`名称表里有代词，运行时会跳过：${dropped.join('、')}。代词机械替换会把“谁对谁说”弄乱；自称怎么写请放进风格卡，交给 AI 按上下文处理。`);
+    if (c.length) msg.push(`注意：${c.join('、')} 出现在预设正则要匹配的字面量里，这些位置不会被替换（替换会让正则失效）。`);
+    $p('#prs-conflict').html(msg.map(m => `<div>${esc(m)}</div>`).join(''));
 }
 
 const lines = (s) => String(s || '').split(/\r?\n/).map(x => x.trim()).filter(Boolean);
@@ -152,7 +156,7 @@ function readForm() {
         concurrency: Math.max(1, Number($p('#prs-conc').val()) || 1), retries: Math.max(0, Number($p('#prs-retry').val()) || 0),
         chunkSize: Math.max(500, Number($p('#prs-chunk').val()) || 4000),
         batchSize: Math.max(0, Number($p('#prs-batch').val()) || 0),
-        direction: $p('#prs-direction').val(), mode: $p('#prs-mode').val(), intensity: $p('#prs-intensity').val(), nameMap: $p('#prs-namemap').val(),
+        direction: $p('#prs-direction').val(), userCall: $p('#prs-usercall').val().trim(), mode: $p('#prs-mode').val(), intensity: $p('#prs-intensity').val(), nameMap: $p('#prs-namemap').val(),
         styleCard: $p('#prs-style').val(), extraKeep: $p('#prs-keep').val(), extraKill: $p('#prs-kill').val(),
     });
     // Key 不勾记住时只留在内存里
@@ -167,7 +171,7 @@ function writeForm() {
     $p('#prs-url').val(s.url); $p('#prs-key').val(s.key || state.key || ''); $p('#prs-save-key').prop('checked', s.saveKey);
     $p('#prs-model').val(s.model); $p('#prs-temp').val(s.temperature); $p('#prs-thinking').val(s.thinking); $p('#prs-conc').val(s.concurrency);
     $p('#prs-retry').val(s.retries); $p('#prs-chunk').val(s.chunkSize); $p('#prs-batch').val(s.batchSize);
-    $p('#prs-direction').val(s.direction); $p('#prs-mode').val(s.mode); $p('#prs-intensity').val(s.intensity); $p('#prs-namemap').val(s.nameMap);
+    $p('#prs-direction').val(s.direction); $p('#prs-usercall').val(s.userCall); $p('#prs-mode').val(s.mode); $p('#prs-intensity').val(s.intensity); $p('#prs-namemap').val(s.nameMap);
     $p('#prs-style').val(s.styleCard); $p('#prs-keep').val(s.extraKeep); $p('#prs-kill').val(s.extraKill);
     $p('#prs-custom').toggle(s.source === 'custom');
 }
@@ -182,7 +186,7 @@ function caller(cfg) {
 async function onAnalyze() {
     if (!state.preset) return toastr.warning('先载入预设');
     const cfg = readForm();
-    const { system, user } = buildAnalyzePrompt(sampleText(state.preset, state.units), cfg.direction);
+    const { system, user } = buildAnalyzePrompt(sampleText(state.preset, state.units), cfg.direction, cfg.userCall);
     log('正在让 AI 分析预设…');
     try {
         const r = parseAnalyzeResult(await caller(cfg)(system, user));
@@ -216,7 +220,7 @@ async function onRun() {
         state.results = await runReskin({
             preset: state.preset, units, callLLM, signal: state.signal,
             options: {
-                mode: cfg.mode, intensity: cfg.intensity, styleCard: cfg.styleCard, nameMapText: cfg.nameMap,
+                mode: cfg.mode, intensity: cfg.intensity, userCall: cfg.userCall, styleCard: cfg.styleCard, nameMapText: cfg.nameMap,
                 extraKeep: lines(cfg.extraKeep), extraKill: lines(cfg.extraKill),
                 fillerUids: state.filler, books, retries: cfg.retries, concurrency: cfg.concurrency, chunkSize: cfg.chunkSize, batchSize: cfg.batchSize,
             },
@@ -334,6 +338,7 @@ async function openTool() {
     const popup = ctx().callGenericPopup(root, ctx().POPUP_TYPE.TEXT, '', { wide: true, large: true, allowVerticalScrolling: true, okButton: '关闭' });
     writeForm();
     try { fillPresetSelect(); } catch (e) { log(`读取预设列表失败：${e.message}`, 'prs-err'); }
+    checkConflicts();
     $p('#prs-books').html('<span class="prs-note">加载中…</span>');
     loadBooks().then(renderBooks).catch((e) => {
         console.error('[预设换皮] 书库加载失败', e);

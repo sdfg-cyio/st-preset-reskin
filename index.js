@@ -218,11 +218,25 @@ function caller(cfg) {
 
 /* ---------------- 分析 / 运行 ---------------- */
 
+/** 按钮进入忙碌状态：图标换成转圈、显示已等待秒数、禁止重复点击；返回结束函数 */
+function busy(sel, text) {
+    const $b = $p(sel);
+    const html = $b.html();
+    const t0 = Date.now();
+    const draw = () => $b.html(`<i class="fa-solid fa-spinner fa-spin"></i> ${esc(text)} ${Math.floor((Date.now() - t0) / 1000)}s`);
+    draw();
+    $b.addClass('prs-busy').attr('aria-busy', 'true');
+    const timer = setInterval(draw, 1000);
+    return () => { clearInterval(timer); $b.html(html).removeClass('prs-busy').removeAttr('aria-busy'); };
+}
+
 async function onAnalyze() {
     if (!state.preset) return toastr.warning('先载入预设');
+    if ($p('#prs-analyze').hasClass('prs-busy')) return;
     const cfg = readForm();
     const { system, user } = buildAnalyzePrompt(sampleText(state.preset, state.units), cfg.direction, cfg.userCall);
     log('正在让 AI 分析预设…');
+    const done = busy('#prs-analyze', '分析中…');
     try {
         const r = parseAnalyzeResult(await caller(cfg)(system, user));
         $p('#prs-mode').val(r.type);
@@ -238,6 +252,8 @@ async function onAnalyze() {
         log(`分析完成：${r.type === 'persona' ? '人物扮演类' : '直接破限类'}；原人格：${r.personas.join('、') || '无'}。可以手动修改名称表和风格卡。`, 'prs-ok');
     } catch (e) {
         log(`分析失败：${e.message}`, 'prs-err');
+    } finally {
+        done();
     }
 }
 
@@ -253,6 +269,7 @@ async function onRun() {
     if (state.filler.size && !books.length) log('勾选了填充但书库为空，跳过填充', 'prs-err');
 
     state.running = true;
+    const doneBusy = busy('#prs-run', '改写中…');
     state.signal = { aborted: false };
     $p('#prs-progress').attr({ value: 0, max: units.length });
     log(`开始改写 ${units.length} 个模块（并发 ${cfg.concurrency}）`);
@@ -278,6 +295,7 @@ async function onRun() {
         log(`运行出错：${e.message}`, 'prs-err');
     } finally {
         state.running = false;
+        doneBusy();
         renderResults();
     }
 }

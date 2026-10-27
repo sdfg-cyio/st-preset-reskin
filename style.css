@@ -11,6 +11,7 @@
     padding: 4px 12px; margin: 0;
 }
 .prs-settings .menu_button { margin-top: 6px; }
+.prs-root .menu_button.prs-busy { opacity: .75; cursor: progress; pointer-events: none; }
 .prs-inline { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; }
 .prs-inline > input { flex: 1 1 auto; min-width: 0; }
 .prs-grid label.prs-check { flex-direction: row; align-items: center; gap: 6px; align-self: end; }

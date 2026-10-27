@@ -1,7 +1,7 @@
 // 预设换皮（Preset Reskin）：让 AI 把聊天补全预设的文字换一种说法，功能、宏、标签、正则全部保留
 import {
     buildUnits, assemblePreset, diffStructure, collectProtected, buildLiteralRe, maskText,
-    fillerScore, FILLER_NAME_HINT, parseNameMap, nameMapConflicts, sanitizeNameMap,
+    fillerScore, FILLER_NAME_HINT, parseNameMap, nameMapConflicts, sanitizeNameMap, TOP_LEVEL_FIELDS,
 } from './lib/core.js';
 import { runReskin, buildAnalyzePrompt, parseAnalyzeResult, sampleText } from './lib/pipeline.js';
 import { makeCaller, listModels } from './lib/llm.js';
@@ -89,6 +89,41 @@ function fillPresetSelect() {
     const { names, pm } = openaiPresets();
     const cur = pm.getSelectedPresetName();
     $p('#prs-src').html(names.map(n => `<option value="${esc(n)}" ${n === cur ? 'selected' : ''}>${esc(n)}</option>`).join(''));
+}
+
+/**
+ * 读取要换皮的预设。选的是当前正在用的预设时，取界面上的实时状态（包括没点保存的开关、顺序和内容），
+ * 否则读已保存的版本。
+ */
+async function loadPresetForReskin(name) {
+    const saved = getPresetByName(name);
+    const { pm } = openaiPresets();
+    if (name !== pm.getSelectedPresetName()) return { preset: saved, note: `读取的是「${name}」已保存的版本（它不是当前正在用的预设）。` };
+    let live = null;
+    try {
+        // 酒馆自己“保存预设”时用的同一个函数，字段最全
+        const mod = await import(new URL('../../../openai.js', BASE).href);
+        if (typeof mod.getChatCompletionPreset === 'function') live = mod.getChatCompletionPreset();
+    } catch (e) { console.warn('[预设换皮] 取实时预设失败，改用手动合并', e); }
+    if (!live) {
+        // 退路：只合并会被用户在界面上改动的字段
+        const cs = ctx().chatCompletionSettings || {};
+        live = { ...saved };
+        for (const k of ['prompts', 'prompt_order', 'extensions', ...TOP_LEVEL_FIELDS]) if (cs[k] !== undefined) live[k] = JSON.parse(JSON.stringify(cs[k]));
+    }
+    live = JSON.parse(JSON.stringify(live));
+    if (!Array.isArray(live.prompts)) return { preset: saved, note: '没取到实时状态，读取的是已保存的版本。' };
+    // 统计没保存的改动，告诉用户
+    const diff = [];
+    const sOrder = JSON.stringify(saved.prompt_order ?? null); const lOrder = JSON.stringify(live.prompt_order ?? null);
+    if (sOrder !== lOrder) diff.push('模块开关或顺序');
+    const sp = new Map((saved.prompts || []).map(p => [p.identifier, p.content]));
+    const changed = live.prompts.filter(p => sp.has(p.identifier) && sp.get(p.identifier) !== p.content).length;
+    const added = live.prompts.filter(p => !sp.has(p.identifier)).length;
+    if (changed) diff.push(`${changed} 个模块的内容`);
+    if (added) diff.push(`${added} 个新模块`);
+    if (JSON.stringify(saved.extensions?.regex_scripts ?? null) !== JSON.stringify(live.extensions?.regex_scripts ?? null)) diff.push('预设正则');
+    return { preset: live, note: diff.length ? `「${name}」是当前正在用的预设，已按界面上的实时状态读取：包含没保存的${diff.join('、')}。` : `「${name}」是当前正在用的预设，界面状态和已保存的一致。` };
 }
 
 function setPreset(preset, name) {
@@ -301,7 +336,11 @@ function bindEvents(root) {
     root.on('change', 'input.text_pole, textarea, select:not(#prs-src), #prs-save-key', () => { readForm(); checkConflicts(); });
     root.on('click', '#prs-load', () => {
         const name = $p('#prs-src').val();
-        try { setPreset(getPresetByName(name), name); } catch (e) { toastr.error(e.message); }
+        loadPresetForReskin(name).then(({ preset, note }) => {
+            setPreset(preset, name);
+            if (note) $p('#prs-stats').append(`<div class="prs-note">${esc(note)}</div>`);
+            if (note) log(note);
+        }).catch((e) => toastr.error(e.message));
     });
     root.on('change', '#prs-file', async (e) => {
         const f = e.target.files?.[0];

@@ -135,6 +135,8 @@ check(validateRewrite('一二三四五六七八九十⟦0⟧', '一二三四五�
     const names = ['伊蕾娜', '用户'];
     check(!validateRewrite('用户把权限交给伊蕾娜，伊蕾娜要回报用户的信任。', '我把权限交给你，你也要回报我的信任呢。', { names }).ok, '名字换成代词应报错');
     check(validateRewrite('用户把权限交给伊蕾娜，伊蕾娜要回报用户的信任。', '用户把这份权限托付给伊蕾娜，伊蕾娜也得对得起用户的信任呢。', { names }).ok, '保留名字的改写应通过');
+    const withGeneric = [...names, '主人', '旅伴'];
+    check(validateRewrite('用户把权限交给伊蕾娜，伊蕾娜要回报用户的信任。', '旅伴把这份权限托付给伊蕾娜，伊蕾娜也得对得起主人的信任呢。', { names: withGeneric }).ok, '换成泛称应通过');
 }
 console.log(failed ? `\n失败 ${failed} 项` : '\n全部通过');
 process.exit(failed ? 1 : 0);

@@ -193,6 +193,11 @@ async function onAnalyze() {
         $p('#prs-mode').val(r.type);
         if (r.name_map) $p('#prs-namemap').val(r.name_map);
         if (r.style_card) $p('#prs-style').val(r.style_card);
+        // 新角色作品里的其他人物名放进禁用词，防止被拿来称呼用户
+        if (r.avoid_names.length) {
+            const cur = lines($p('#prs-kill').val());
+            $p('#prs-kill').val([...new Set([...cur, ...r.avoid_names])].join('\n'));
+        }
         readForm();
         checkConflicts();
         log(`分析完成：${r.type === 'persona' ? '人物扮演类' : '直接破限类'}；原人格：${r.personas.join('、') || '无'}。可以手动修改名称表和风格卡。`, 'prs-ok');

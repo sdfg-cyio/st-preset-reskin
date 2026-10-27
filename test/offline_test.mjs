@@ -5,7 +5,7 @@ import path from 'node:path';
 import { buildUnits, assemblePreset, diffStructure, collectProtected, fillerScore, maskText, buildLiteralRe, validateRewrite, FILLER_NAME_HINT, parseNameMap, nameMapConflicts, sanitizeNameMap } from '../lib/core.js';
 import { runReskin } from '../lib/pipeline.js';
 
-const dir = process.argv[2] || 'D:/worker/RI';
+const dir = process.argv[2] || process.env.PRESET_DIR || 'presets';
 const here = path.dirname(new URL(import.meta.url).pathname).replace(/^\/(\w:)/, '$1');
 const booksDir = path.join(here, '..', 'books');
 const books = JSON.parse(fs.readFileSync(path.join(booksDir, 'index.json'), 'utf8'))

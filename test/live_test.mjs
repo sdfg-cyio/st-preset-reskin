@@ -28,7 +28,7 @@ const CASES = process.env.CASES ? JSON.parse(process.env.CASES) : (process.env.F
 
 const report = [];
 for (const c of CASES) {
-    const preset = JSON.parse(fs.readFileSync(path.join('D:/worker/RI', c.file), 'utf8'));
+    const preset = JSON.parse(fs.readFileSync(path.join(process.env.PRESET_DIR || 'presets', c.file), 'utf8'));
     const re = buildLiteralRe(collectProtected(preset).literals);
     const all = buildUnits(preset);
     const rewritable = all.filter(u => !u.skip && hasRewritable(maskText(u.original, re).masked));

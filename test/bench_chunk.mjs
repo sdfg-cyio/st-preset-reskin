@@ -17,7 +17,7 @@ const CASES = [
     { file: 'Kemini_Dramatron_v3.1.json', mode: 'neutral', nameMap: '', style: '' },
 ];
 const sets = CASES.map(c => {
-    const preset = JSON.parse(fs.readFileSync(path.join('D:/worker/RI', c.file), 'utf8'));
+    const preset = JSON.parse(fs.readFileSync(path.join(process.env.PRESET_DIR || 'presets', c.file), 'utf8'));
     const re = buildLiteralRe(collectProtected(preset).literals);
     const units = buildUnits(preset).map(u => ({ ...u, selected: !u.skip && hasRewritable(maskText(u.original, re).masked) && maskText(u.original, re).masked.length > MIN }));
     return { ...c, preset, units };

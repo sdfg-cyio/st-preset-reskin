@@ -20,7 +20,7 @@ const base = makeCaller({ source: 'custom', url: LIVE_URL, key: LIVE_KEY, model:
 const callLLM = async (s, u) => { calls++; return base(s, u); };
 const judge = makeCaller({ source: 'custom', url: LIVE_URL, key: LIVE_KEY, model: JUDGE_MODEL || LIVE_MODEL, temperature: 0, timeoutSec: 300, thinking: 'off' });
 
-const CASES = (process.env.FILES ? (x => x.filter(c => process.env.FILES.split(',').some(f => c.file.includes(f)))) : (x => x))([
+const CASES = process.env.CASES ? JSON.parse(process.env.CASES) : (process.env.FILES ? (x => x.filter(c => process.env.FILES.split(',').some(f => c.file.includes(f)))) : (x => x))([
     { file: 'Izumi_0923.json', every: 6, direction: '换成《学园偶像大师》秦谷美铃的口吻，句尾常带“嘛”，称呼用户为制作人/producer 混用' },
     { file: 'Kemini_Dramatron_v3.1.json', every: 3, direction: '' },
     { file: '【小猫之神·喵赛亚】1.6.json', every: 2, direction: '' },
@@ -42,12 +42,12 @@ for (const c of CASES) {
     calls = 0;
     const ap = buildAnalyzePrompt(sampleText(preset, all), process.env.DIRECTION ?? c.direction);
     const an = parseAnalyzeResult(await callLLM(ap.system, ap.user));
-    console.log(`===== ${c.file}\n  分析: ${an.type} 原人格=${an.personas.join('、')}\n  名称表: ${an.name_map.replace(/\n/g, ' ; ')}\n  风格卡: ${an.style_card}`);
+    console.log(`===== ${c.file}\n  分析: ${an.type} 原人格=${an.personas.join('、')} 禁用名=${an.avoid_names.join('、')}\n  名称表: ${an.name_map.replace(/\n/g, ' ; ')}\n  风格卡: ${an.style_card}`);
 
     // 2. 改写
     const results = await runReskin({
         preset, units, callLLM,
-        options: { mode: an.type, intensity: process.env.INTENSITY || 'normal', styleCard: an.style_card, nameMapText: an.name_map, concurrency: Number(process.env.CONC || 6), batchSize: 3000 },
+        options: { mode: an.type, intensity: process.env.INTENSITY || 'normal', extraKill: an.avoid_names, styleCard: an.style_card, nameMapText: an.name_map, concurrency: Number(process.env.CONC || 6), batchSize: 3000 },
         onProgress: (e) => { if (e.stage) console.log('  ' + e.stage); },
     });
     const stat = {};
@@ -61,25 +61,30 @@ for (const c of CASES) {
     results.filter(r => r.notes.some(n => n.includes('保留原文'))).forEach(r => console.log(`   ! ${r.label}: ${r.notes.join('；').slice(0, 200)}`));
 
     // 3. 评审
-    const okr = process.env.NOJUDGE ? [] : results.filter(r => r.status === 'ok' || r.status === 'partial');
+    // 评审只挑人称/称呼密集的模块，省钱
+    const dense = (t) => (t.match(/我|你|您|咱|Master|master|user|用户|主人/g) || []).length;
+    const okr = process.env.NOJUDGE ? [] : results.filter(r => (r.status === 'ok' || r.status === 'partial') && dense(r.original) >= 3)
+        .sort((a, b) => dense(b.original) - dense(a.original)).slice(0, Number(process.env.JUDGE_MAX || 20));
     const verdicts = [];
     for (let i = 0; i < okr.length; i += 4) {
         const group = okr.slice(i, i + 4);
         const body = group.map((r, k) => `<pair id="${k}">\n<原文>\n${r.original}\n</原文>\n<改写>\n${r.output}\n</改写>\n</pair>`).join('\n');
         const sys = '你是提示词审校员。只输出 JSON 数组，不要代码块。';
-        const usr = `下面每组是 SillyTavern 预设的原文和改写。改写只允许换说法、按名称表换名字（${an.name_map.replace(/\n/g, '；') || '无'}），并且有意把原人格口吻换成新口吻：${an.style_card || '中性'}。人格口吻的替换（包括“用某角色口吻写”这类要求里角色与口吻的替换）是预期行为，不算偏移；只看指令功能。\n逐组判断改写后对模型的指令含义是否偏移：\n- none：功能等价\n- minor：措辞强弱或细节略有变化，不影响功能\n- major：丢了约束、改了条件或数值、加了新要求、含义反了\n另外指出格式问题（宏、标签、列表结构被破坏）。\n输出：[{"id":0,"drift":"none|minor|major","note":"一句话，说清哪里变了"}]\n\n${body}`;
+        const usr = `下面每组是 SillyTavern 预设的原文和改写。改写只允许换说法、按名称表换名字（${an.name_map.replace(/\n/g, '；') || '无'}），并且有意把原人格口吻换成新口吻：${an.style_card || '中性'}。人格口吻的替换（包括“用某角色口吻写”这类要求里角色与口吻的替换）是预期行为，不算偏移；只看指令功能。\n逐组判断改写后对模型的指令含义是否偏移：\n- none：功能等价\n- minor：措辞强弱或细节略有变化，不影响功能\n- major：丢了约束、改了条件或数值、加了新要求、含义反了\n另外指出格式问题（宏、标签、列表结构被破坏）。\n另外专门检查人称和称呼，结果写在 who 字段：ok 没问题；swap 说话人或对象对调、指代串了（谁对谁说变了）；invent 捏造了原文没有的称谓或昵称，或把用户说成某个具体人物、引入了原文没有的人物。主人、旅伴、搭档、用户这类泛称不算捏造。\n输出：[{"id":0,"drift":"none|minor|major","who":"ok|swap|invent","note":"一句话，说清哪里变了"}]\n\n${body}`;
         try {
             const raw = await judge(sys, usr);
             const m = raw.replace(/<think>[\s\S]*?<\/think>/g, '').match(/\[[\s\S]*\]/);
             if (!m) throw new Error(`评审回复不是 JSON：${raw.slice(0, 80)}`);
             const arr = JSON.parse(m[0]);
-            arr.forEach(v => { const r = group[v.id]; if (r) verdicts.push({ label: r.label, drift: v.drift, note: v.note }); });
+            arr.forEach(v => { const r = group[v.id]; if (r) verdicts.push({ label: r.label, drift: v.drift, who: v.who || 'ok', note: v.note }); });
         } catch (e) { console.log('  评审失败', e.message); }
     }
     const d = { none: 0, minor: 0, major: 0 };
     verdicts.forEach(v => { d[v.drift] = (d[v.drift] || 0) + 1; });
-    console.log(`  评审: ${JSON.stringify(d)}`);
-    verdicts.filter(v => v.drift !== 'none').forEach(v => console.log(`   [${v.drift}] ${v.label}: ${v.note}`));
+    const w = { ok: 0, swap: 0, invent: 0 };
+    verdicts.forEach(v => { w[v.who] = (w[v.who] || 0) + 1; });
+    console.log(`  评审 ${verdicts.length} 个: 含义 ${JSON.stringify(d)}；人称/称呼 ${JSON.stringify(w)}`);
+    verdicts.filter(v => v.drift !== 'none' || v.who !== 'ok').forEach(v => console.log(`   [${v.drift}/${v.who}] ${v.label}: ${v.note}`));
 
     report.push({ file: c.file, analysis: an, stat, calls, verdicts, results: results.filter(r => r.status !== 'unchanged').map(r => ({ label: r.label, status: r.status, notes: r.notes, original: r.original, output: r.output })) });
     fs.writeFileSync(path.join(outDir, c.file.replace('.json', '_live.json')), JSON.stringify(out, null, 4));

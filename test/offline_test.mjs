@@ -16,7 +16,7 @@ const rand = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 214748364
 
 // 假 AI：自由文本每个字后插“~”，占位符原样
 let calls = 0;
-const mangle = (src) => src.split(/(⟦\d+⟧|<\/?unit[^>]*>)/).map(s => /^⟦\d+⟧$|^<\/?unit/.test(s) ? s : s.replace(/([一-鿿])/g, '$1·').replace(/\b([A-Za-z]{3,})\b/g, '$1x')).join('');
+const mangle = (src) => src.split(/(⟦\d+⟧|<\/?unit[^>]*>)/).map(s => /^⟦\d+⟧$|^<\/?unit/.test(s) ? s : s.split(/(秦谷美铃|小秦|制作人|用户|主人|旅伴|旅人|搭档|伙伴|玩家|读者|客人)/).map(x => /^(秦谷美铃|小秦|制作人|用户|主人|旅伴|旅人|搭档|伙伴|玩家|读者|客人)$/.test(x) ? x : x.replace(/([一-鿿])/g, '$1·')).join('').replace(/\b([A-Za-z]{3,})\b/g, '$1x')).join('');
 const goodLLM = async (_sys, user) => {
     calls++;
     const src = user.match(/<src>\n([\s\S]*?)\n<\/src>/)[1];
@@ -103,7 +103,12 @@ for (const f of fs.readdirSync(dir).filter(x => x.endsWith('.json'))) {
         check(skel(r.original) === skel(r.output), `宏骨架变化：${r.label}`);
     });
     const ha = regexHits(preset); const hb = regexHits(out);
-    ha.forEach((x, i) => check(x === hb[i] || filled.size, `正则命中数变化：${preset.extensions.regex_scripts[i].scriptName} ${x}→${hb[i]}`));
+    // promptOnly 的正则常用来改写发出去的敏感词，文字换了命中数跟着变是正常的，只提示
+    ha.forEach((x, i) => {
+        const r = preset.extensions.regex_scripts[i];
+        if (x !== hb[i] && r.promptOnly) console.log(`  提示：promptOnly 正则命中数变化 ${r.scriptName} ${x}→${hb[i]}`);
+        else check(x === hb[i] || filled.size, `正则命中数变化：${r.scriptName} ${x}→${hb[i]}`);
+    });
     console.log('  正则命中(前→后):', ha.map((x, i) => x === hb[i] ? x : `${x}→${hb[i]}`).join(','));
     const sample = results.find(r => r.status === 'ok' && r.original.includes('{{setvar'));
     if (sample) console.log('  样例:', sample.label, '\n   原:', sample.original.slice(0, 120).replace(/\n/g, '⏎'), '\n   新:', sample.output.slice(0, 160).replace(/\n/g, '⏎'));

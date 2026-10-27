@@ -1,0 +1,51 @@
+[
+  {
+    "id": "proust_swann_fr",
+    "title": "Du côté de chez Swann — Marcel Proust",
+    "lang": "fr",
+    "file": "proust_swann_fr.txt",
+    "chars": 110281
+  },
+  {
+    "id": "proust_swann_en",
+    "title": "Swann's Way — Proust / Scott Moncrieff",
+    "lang": "en",
+    "file": "proust_swann_en.txt",
+    "chars": 112082
+  },
+  {
+    "id": "joyce_ulysses",
+    "title": "Ulysses — James Joyce",
+    "lang": "en",
+    "file": "joyce_ulysses.txt",
+    "chars": 110385
+  },
+  {
+    "id": "tolstoy_war_peace",
+    "title": "War and Peace — Tolstoy / Maude",
+    "lang": "en",
+    "file": "tolstoy_war_peace.txt",
+    "chars": 110234
+  },
+  {
+    "id": "honglou",
+    "title": "紅樓夢 — 曹雪芹",
+    "lang": "zh",
+    "file": "honglou.txt",
+    "chars": 112354
+  },
+  {
+    "id": "xiyou",
+    "title": "西遊記 — 吳承恩",
+    "lang": "zh",
+    "file": "xiyou.txt",
+    "chars": 110129
+  },
+  {
+    "id": "doupeng",
+    "title": "豆棚閒話 — 艾衲居士",
+    "lang": "zh",
+    "file": "doupeng.txt",
+    "chars": 74495
+  }
+]

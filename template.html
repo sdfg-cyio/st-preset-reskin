@@ -1,0 +1,110 @@
+<div class="prs-root">
+    <h3>预设换皮 <small>— 换说法，不换功能</small></h3>
+
+    <section class="prs-sec">
+        <div class="prs-title">1. 源预设</div>
+        <div class="prs-row">
+            <select id="prs-src" class="text_pole"></select>
+            <label class="menu_button prs-file-btn" title="从 JSON 文件导入">
+                <i class="fa-solid fa-file-import"></i> 导入文件
+                <input type="file" id="prs-file" accept=".json,application/json" hidden>
+            </label>
+            <div id="prs-load" class="menu_button">载入</div>
+        </div>
+        <div id="prs-stats" class="prs-note"></div>
+    </section>
+
+    <section class="prs-sec">
+        <div class="prs-title">2. 改写用的 AI</div>
+        <div class="prs-row">
+            <label><input type="radio" name="prs-source" value="main"> 当前主 API</label>
+            <label><input type="radio" name="prs-source" value="custom"> 独立接口（OpenAI 兼容）</label>
+        </div>
+        <div id="prs-custom" class="prs-grid">
+            <label>地址 <input id="prs-url" class="text_pole" placeholder="https://example.com/v1"></label>
+            <label>Key <input id="prs-key" class="text_pole" type="password" autocomplete="off"></label>
+            <label>模型 <span class="prs-inline"><input id="prs-model" class="text_pole" list="prs-models"><datalist id="prs-models"></datalist><span id="prs-fetch-models" class="menu_button" title="获取模型列表"><i class="fa-solid fa-rotate"></i></span></span></label>
+            <label title="改写不需要推理；DeepSeek 等模型默认会先长篇思考，关掉能快好几倍">思考
+                <select id="prs-thinking" class="text_pole">
+                    <option value="off">关闭（推荐，最快）</option>
+                    <option value="low">低</option>
+                    <option value="default">接口默认</option>
+                </select></label>
+            <label class="prs-check"><input type="checkbox" id="prs-save-key"> 记住 Key（明文存在酒馆设置里）</label>
+        </div>
+        <div class="prs-grid">
+            <label>温度 <input id="prs-temp" class="text_pole" type="number" step="0.1" min="0" max="2"></label>
+            <label>并发 <input id="prs-conc" class="text_pole" type="number" min="1" max="16"></label>
+            <label>失败重试 <input id="prs-retry" class="text_pole" type="number" min="0" max="5"></label>
+            <label>长模块切块字数 <input id="prs-chunk" class="text_pole" type="number" min="500" max="8000" step="100"></label>
+            <label title="多个短模块拼成一个请求，填 0 为逐条发">每包字数（0=逐条） <input id="prs-batch" class="text_pole" type="number" min="0" max="12000" step="500"></label>
+        </div>
+    </section>
+
+    <section class="prs-sec">
+        <div class="prs-title">3. 方向</div>
+        <textarea id="prs-direction" class="text_pole" rows="2" placeholder="你的重要指示：指定新人物、口吻或方向。例如：换成《学园偶像大师》秦谷美铃的口吻，句尾带“嘛”，称呼用户为制作人/producer。留空则让 AI 自己发挥。"></textarea>
+        <div class="prs-row">
+            <div id="prs-analyze" class="menu_button"><i class="fa-solid fa-magnifying-glass"></i> AI 分析预设并生成风格卡</div>
+        </div>
+        <div class="prs-grid">
+            <label>模式
+                <select id="prs-mode" class="text_pole">
+                    <option value="persona">人物扮演类：换角色口吻</option>
+                    <option value="neutral">直接破限类：中性同义改写</option>
+                </select>
+            </label>
+            <label title="力度越大和原版越不像，偶尔需要重试的模块会多一些">改写力度
+                <select id="prs-intensity" class="text_pole">
+                    <option value="light">保守：主要换词</option>
+                    <option value="normal">标准：每句换说法（推荐）</option>
+                    <option value="bold">大胆：彻底重写</option>
+                </select>
+            </label>
+        </div>
+        <div class="prs-grid2">
+            <label>名称替换（可留空，点“AI 分析”会自动填）
+                <textarea id="prs-namemap" class="text_pole" rows="4" placeholder="示例（每行 旧=新，想混用就写 新1|新2）：&#10;泉此方=秦谷美铃&#10;小此=小秦&#10;master=制作人|producer&#10;直接破限类预设一般留空"></textarea></label>
+            <label>风格卡（可留空，点“AI 分析”会自动填）
+                <textarea id="prs-style" class="text_pole" rows="4" placeholder="新口吻的说明，示例：&#10;自称美铃，句尾常带“嘛”，称呼用户为制作人，语气软糯但做事认真。&#10;留空则由 AI 自选一种与原文明显不同的说法"></textarea></label>
+            <label>额外锁定词（可留空）
+                <textarea id="prs-keep" class="text_pole" rows="2" placeholder="不能改的词，每行一个，如世界书触发词、脚本认的关键字。宏、标签、正则里的词已自动锁住"></textarea></label>
+            <label>额外禁用词（可留空）
+                <textarea id="prs-kill" class="text_pole" rows="2" placeholder="不许 AI 新写出的词，每行一个。预设杀词和常见八股词已内置"></textarea></label>
+        </div>
+        <div id="prs-conflict" class="prs-warn"></div>
+    </section>
+
+    <section class="prs-sec">
+        <div class="prs-title">4. 模块与长文本填充</div>
+        <div class="prs-note">勾选要改写的模块。右侧“填充”会把该模块里的大段纯文本换成公版书节选（只换文字段，标签和宏保留）。文风范文、设定资料也会被识别成长文本，别勾错。</div>
+        <div class="prs-row">
+            <span class="menu_button" id="prs-sel-all">全选</span>
+            <span class="menu_button" id="prs-sel-none">全不选</span>
+            <span class="prs-note">书库：</span><span id="prs-books"></span>
+        </div>
+        <div id="prs-units" class="prs-list"></div>
+    </section>
+
+    <section class="prs-sec">
+        <div class="prs-title">5. 运行</div>
+        <div class="prs-row">
+            <div id="prs-run" class="menu_button"><i class="fa-solid fa-play"></i> 开始改写</div>
+            <div id="prs-stop" class="menu_button"><i class="fa-solid fa-stop"></i> 停止</div>
+            <progress id="prs-progress" value="0" max="1"></progress>
+            <span id="prs-progress-text"></span>
+        </div>
+        <div id="prs-log" class="prs-log"></div>
+    </section>
+
+    <section class="prs-sec">
+        <div class="prs-title">6. 结果</div>
+        <div class="prs-note">逐个检查，取消勾选的模块保留原文。</div>
+        <div id="prs-results" class="prs-list"></div>
+        <div class="prs-row">
+            <label>新预设名 <input id="prs-outname" class="text_pole"></label>
+            <div id="prs-save" class="menu_button"><i class="fa-solid fa-floppy-disk"></i> 保存到酒馆</div>
+            <div id="prs-download" class="menu_button"><i class="fa-solid fa-download"></i> 下载 JSON</div>
+        </div>
+    </section>
+</div>

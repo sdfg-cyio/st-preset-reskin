@@ -1,0 +1,12 @@
+{
+    "display_name": "预设换皮 Preset Reskin",
+    "loading_order": 100,
+    "requires": [],
+    "optional": [],
+    "js": "index.js",
+    "css": "style.css",
+    "author": "Warlam",
+    "version": "0.1.0",
+    "homePage": "",
+    "auto_update": false
+}

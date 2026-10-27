@@ -1,0 +1,8 @@
+{
+    "name": "st-preset-reskin",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "test": "node test/offline_test.mjs"
+    }
+}

@@ -1,0 +1,38 @@
+.prs-root { text-align: left; display: flex; flex-direction: column; gap: 10px; }
+.prs-root h3 small { opacity: .6; font-weight: normal; }
+.prs-sec { border: 1px solid var(--SmartThemeBorderColor); border-radius: 8px; padding: 8px 10px; }
+.prs-title { font-weight: bold; margin-bottom: 6px; }
+.prs-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.prs-row > select.text_pole { flex: 1; min-width: 200px; }
+/* 酒馆的 menu_button 在 flex 里会被挤成竖排，固定为横排、不收缩 */
+.prs-root .menu_button, .prs-settings .menu_button {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    width: auto; flex: 0 0 auto; white-space: nowrap; writing-mode: horizontal-tb;
+    padding: 4px 12px; margin: 0;
+}
+.prs-settings .menu_button { margin-top: 6px; }
+.prs-inline { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; }
+.prs-inline > input { flex: 1 1 auto; min-width: 0; }
+.prs-grid label.prs-check { flex-direction: row; align-items: center; gap: 6px; align-self: end; }
+.prs-row > label { display: inline-flex; align-items: center; gap: 6px; }
+.prs-row > label > input.text_pole { width: auto; min-width: 220px; }
+.prs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 6px; margin-top: 6px; }
+.prs-grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 6px; margin-top: 6px; }
+.prs-grid label, .prs-grid2 label { display: flex; flex-direction: column; gap: 2px; }
+.prs-note { font-size: .85em; opacity: .75; }
+.prs-warn { color: var(--warning, #e8a33d); font-size: .9em; }
+.prs-list { max-height: 40vh; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.prs-unit { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 2px 4px; border-bottom: 1px dashed var(--SmartThemeBorderColor); }
+.prs-unit > details { flex-basis: 100%; }
+.prs-unit pre { white-space: pre-wrap; word-break: break-all; max-height: 300px; overflow-y: auto; font-size: .8em; margin: 4px 0; }
+.prs-dim { opacity: .45; }
+.prs-fill { color: var(--SmartThemeQuoteColor); }
+.prs-chip { display: inline-flex; gap: 3px; align-items: center; margin-right: 8px; font-size: .85em; }
+.prs-log { max-height: 160px; overflow-y: auto; font-family: monospace; font-size: .8em; background: var(--black30a); padding: 4px; border-radius: 4px; }
+.prs-log .prs-err, .prs-st-failed .prs-badge, .prs-st-partial .prs-badge { color: #e66; }
+.prs-log .prs-ok, .prs-st-ok .prs-badge { color: #6c6; }
+.prs-badge { font-size: .8em; }
+.prs-cmp { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.prs-cmp pre:first-child { opacity: .7; }
+#prs-progress { flex: 1; min-width: 120px; }
+@media (max-width: 700px) { .prs-cmp { grid-template-columns: 1fr; } }
